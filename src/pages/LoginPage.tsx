@@ -3,11 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
-  const { signInWithPasscode } = useAuth()
+  const { signInWithPasscode, session } = useAuth()
   const navigate = useNavigate()
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // If already signed in, redirect
+  if (session) {
+    navigate('/', { replace: true })
+    return null
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

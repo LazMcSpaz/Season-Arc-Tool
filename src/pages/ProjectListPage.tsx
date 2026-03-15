@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { offlineMutation } from '../lib/offlineQueue'
 import { useAuth } from '../contexts/AuthContext'
 import type { Project } from '../lib/types'
 
@@ -27,15 +28,23 @@ export default function ProjectListPage() {
     e.preventDefault()
     if (!newTitle.trim()) return
     setCreating(true)
-    const { data, error } = await supabase
-      .from('project')
-      .insert({ title: newTitle.trim() } as any)
-      .select()
-      .single<Project>()
+    const insertData = { title: newTitle.trim() }
+    const tempId = crypto.randomUUID()
+    const result = await offlineMutation(
+      async () => {
+        const { data, error } = await supabase
+          .from('project')
+          .insert(insertData as any)
+          .select()
+          .single<Project>()
+        if (error) return null
+        return data
+      },
+      { table: 'project', operation: 'insert', data: { ...insertData, id: tempId } }
+    )
     setCreating(false)
-    if (data && !error) {
-      navigate(`/project/${data.id}`)
-    }
+    const id = result?.id ?? tempId
+    navigate(`/project/${id}`)
   }
 
   return (

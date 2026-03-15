@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo, t
 import { useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { fetchProjectData } from '../lib/queries'
+import { offlineMutation } from '../lib/offlineQueue'
 import { useRealtimeSubscription } from '../hooks/useRealtimeSubscription'
 import type { Project, Thread, Episode, ArcCell, Character } from '../lib/types'
 
@@ -98,25 +99,44 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const addEpisode = async (number: number): Promise<Episode | null> => {
     if (!projectId) return null
-    const { data } = await supabase
-      .from('episode')
-      .insert({ project_id: projectId, number } as any)
-      .select()
-      .single<Episode>()
-    if (data) {
-      setEpisodes((prev) => [...prev, data].sort((a, b) => a.number - b.number))
-      // Create empty arc cells for all threads
-      if (threads.length > 0) {
-        const cells = threads.map((t) => ({
-          episode_id: data.id,
-          thread_id: t.id,
-          content: '',
-        }))
-        const { data: newCells } = await supabase
-          .from('arc_cell')
-          .insert(cells as any)
+    const insertData = { project_id: projectId, number }
+    const tempId = crypto.randomUUID()
+    const result = await offlineMutation(
+      async () => {
+        const { data } = await supabase
+          .from('episode')
+          .insert(insertData as any)
           .select()
-        if (newCells) setArcCells((prev) => [...prev, ...(newCells as ArcCell[])])
+          .single<Episode>()
+        return data
+      },
+      { table: 'episode', operation: 'insert', data: { ...insertData, id: tempId } }
+    )
+    const data = result ?? { id: tempId, ...insertData, title: '', created_at: new Date().toISOString() } as Episode
+    setEpisodes((prev) => [...prev, data].sort((a, b) => a.number - b.number))
+    // Create empty arc cells for all threads
+    if (threads.length > 0) {
+      const cells = threads.map((t) => ({
+        episode_id: data.id,
+        thread_id: t.id,
+        content: '',
+      }))
+      const cellResult = await offlineMutation(
+        async () => {
+          const { data: newCells } = await supabase
+            .from('arc_cell')
+            .insert(cells as any)
+            .select()
+          return newCells as ArcCell[]
+        },
+        { table: 'arc_cell', operation: 'insert', data: cells }
+      )
+      if (cellResult) {
+        setArcCells((prev) => [...prev, ...cellResult])
+      } else {
+        // Offline: add temp arc cells to local state
+        const tempCells = cells.map((c) => ({ ...c, id: crypto.randomUUID(), updated_at: new Date().toISOString() })) as ArcCell[]
+        setArcCells((prev) => [...prev, ...tempCells])
       }
     }
     return data
@@ -125,25 +145,43 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const addThread = async (name: string, color: string): Promise<Thread | null> => {
     if (!projectId) return null
     const sortOrder = threads.length
-    const { data } = await supabase
-      .from('thread')
-      .insert({ project_id: projectId, name, color, sort_order: sortOrder } as any)
-      .select()
-      .single<Thread>()
-    if (data) {
-      setThreads((prev) => [...prev, data])
-      // Create empty arc cells for all episodes
-      if (episodes.length > 0) {
-        const cells = episodes.map((e) => ({
-          episode_id: e.id,
-          thread_id: data.id,
-          content: '',
-        }))
-        const { data: newCells } = await supabase
-          .from('arc_cell')
-          .insert(cells as any)
+    const insertData = { project_id: projectId, name, color, sort_order: sortOrder }
+    const tempId = crypto.randomUUID()
+    const result = await offlineMutation(
+      async () => {
+        const { data } = await supabase
+          .from('thread')
+          .insert(insertData as any)
           .select()
-        if (newCells) setArcCells((prev) => [...prev, ...(newCells as ArcCell[])])
+          .single<Thread>()
+        return data
+      },
+      { table: 'thread', operation: 'insert', data: { ...insertData, id: tempId } }
+    )
+    const data = result ?? { id: tempId, ...insertData, created_at: new Date().toISOString() } as Thread
+    setThreads((prev) => [...prev, data])
+    // Create empty arc cells for all episodes
+    if (episodes.length > 0) {
+      const cells = episodes.map((e) => ({
+        episode_id: e.id,
+        thread_id: data.id,
+        content: '',
+      }))
+      const cellResult = await offlineMutation(
+        async () => {
+          const { data: newCells } = await supabase
+            .from('arc_cell')
+            .insert(cells as any)
+            .select()
+          return newCells as ArcCell[]
+        },
+        { table: 'arc_cell', operation: 'insert', data: cells }
+      )
+      if (cellResult) {
+        setArcCells((prev) => [...prev, ...cellResult])
+      } else {
+        const tempCells = cells.map((c) => ({ ...c, id: crypto.randomUUID(), updated_at: new Date().toISOString() })) as ArcCell[]
+        setArcCells((prev) => [...prev, ...tempCells])
       }
     }
     return data
@@ -151,66 +189,108 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const addCharacter = async (name: string, color: string): Promise<Character | null> => {
     if (!projectId) return null
-    const { data } = await supabase
-      .from('character')
-      .insert({ project_id: projectId, name, color } as any)
-      .select()
-      .single<Character>()
-    if (data) setCharacters((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+    const insertData = { project_id: projectId, name, color }
+    const tempId = crypto.randomUUID()
+    const result = await offlineMutation(
+      async () => {
+        const { data } = await supabase
+          .from('character')
+          .insert(insertData as any)
+          .select()
+          .single<Character>()
+        return data
+      },
+      { table: 'character', operation: 'insert', data: { ...insertData, id: tempId } }
+    )
+    const data = result ?? { id: tempId, ...insertData, arc_summary: '', created_at: new Date().toISOString() } as Character
+    setCharacters((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
     return data
   }
 
   const updateArcCell = async (episodeId: string, threadId: string, content: string) => {
-    const { data } = await supabase
-      .from('arc_cell')
-      .upsert({ episode_id: episodeId, thread_id: threadId, content } as any, {
-        onConflict: 'episode_id,thread_id',
-      })
-      .select()
-      .single<ArcCell>()
-    if (data) {
-      setArcCells((prev) => {
-        const idx = prev.findIndex((c) => c.episode_id === episodeId && c.thread_id === threadId)
-        if (idx >= 0) {
-          const next = [...prev]
-          next[idx] = data
-          return next
+    const upsertData = { episode_id: episodeId, thread_id: threadId, content }
+    await offlineMutation(
+      async () => {
+        const { data } = await supabase
+          .from('arc_cell')
+          .upsert(upsertData as any, { onConflict: 'episode_id,thread_id' })
+          .select()
+          .single<ArcCell>()
+        if (data) {
+          setArcCells((prev) => {
+            const idx = prev.findIndex((c) => c.episode_id === episodeId && c.thread_id === threadId)
+            if (idx >= 0) {
+              const next = [...prev]
+              next[idx] = data
+              return next
+            }
+            return [...prev, data]
+          })
         }
-        return [...prev, data]
-      })
-    }
+        return data
+      },
+      { table: 'arc_cell', operation: 'upsert', data: upsertData, onConflict: 'episode_id,thread_id' }
+    )
+    // Optimistic update for offline case
+    setArcCells((prev) => {
+      const idx = prev.findIndex((c) => c.episode_id === episodeId && c.thread_id === threadId)
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = { ...next[idx], content }
+        return next
+      }
+      return prev
+    })
   }
 
   const updateEpisode = async (id: string, updates: Partial<Episode>) => {
-    await supabase.from('episode').update(updates as any).eq('id', id)
     setEpisodes((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)))
+    await offlineMutation(
+      () => supabase.from('episode').update(updates as any).eq('id', id) as any,
+      { table: 'episode', operation: 'update', data: updates, match: { id } }
+    )
   }
 
   const updateThread = async (id: string, updates: Partial<Thread>) => {
-    await supabase.from('thread').update(updates as any).eq('id', id)
     setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
+    await offlineMutation(
+      () => supabase.from('thread').update(updates as any).eq('id', id) as any,
+      { table: 'thread', operation: 'update', data: updates, match: { id } }
+    )
   }
 
   const updateCharacter = async (id: string, updates: Partial<Character>) => {
-    await supabase.from('character').update(updates as any).eq('id', id)
     setCharacters((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)))
+    await offlineMutation(
+      () => supabase.from('character').update(updates as any).eq('id', id) as any,
+      { table: 'character', operation: 'update', data: updates, match: { id } }
+    )
   }
 
   const deleteThread = async (id: string) => {
-    await supabase.from('thread').delete().eq('id', id)
     setThreads((prev) => prev.filter((t) => t.id !== id))
     setArcCells((prev) => prev.filter((c) => c.thread_id !== id))
+    await offlineMutation(
+      () => supabase.from('thread').delete().eq('id', id) as any,
+      { table: 'thread', operation: 'delete', match: { id } }
+    )
   }
 
   const deleteEpisode = async (id: string) => {
-    await supabase.from('episode').delete().eq('id', id)
     setEpisodes((prev) => prev.filter((e) => e.id !== id))
     setArcCells((prev) => prev.filter((c) => c.episode_id !== id))
+    await offlineMutation(
+      () => supabase.from('episode').delete().eq('id', id) as any,
+      { table: 'episode', operation: 'delete', match: { id } }
+    )
   }
 
   const deleteCharacter = async (id: string) => {
-    await supabase.from('character').delete().eq('id', id)
     setCharacters((prev) => prev.filter((c) => c.id !== id))
+    await offlineMutation(
+      () => supabase.from('character').delete().eq('id', id) as any,
+      { table: 'character', operation: 'delete', match: { id } }
+    )
   }
 
   return (

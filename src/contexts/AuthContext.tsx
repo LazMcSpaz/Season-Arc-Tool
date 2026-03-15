@@ -33,22 +33,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithPasscode = async (code: string) => {
     const accessCode = import.meta.env.VITE_ACCESS_CODE
+    if (!accessCode) {
+      return { error: 'Access code not configured. Check VITE_ACCESS_CODE env var.' }
+    }
     if (code !== accessCode) {
       return { error: 'Incorrect passcode.' }
     }
 
-    // Passcode correct — sign in anonymously to get a Supabase session for RLS
-    const { data, error } = await supabase.auth.signInAnonymously()
-    if (error) {
-      return { error: error.message }
+    try {
+      const { data, error } = await supabase.auth.signInAnonymously()
+      if (error) {
+        return { error: `Auth error: ${error.message}` }
+      }
+      if (data.session) {
+        setSession(data.session)
+      }
+      return { error: null }
+    } catch (err: any) {
+      return { error: `Connection error: ${err?.message ?? 'Unknown error. Check Supabase URL and API key.'}` }
     }
-
-    // Set session immediately so ProtectedRoute doesn't redirect
-    if (data.session) {
-      setSession(data.session)
-    }
-
-    return { error: null }
   }
 
   const signOut = async () => {

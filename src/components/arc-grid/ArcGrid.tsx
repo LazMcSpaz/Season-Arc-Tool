@@ -1,9 +1,46 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useProject } from '../../contexts/ProjectContext'
 import ArcCellComponent from './ArcCellComponent'
 import type { Thread, Episode } from '../../lib/types'
 import { COLOR_PALETTE } from '../../lib/colors'
+
+/** Portal-based dropdown that positions itself next to a trigger button */
+function DropdownPortal({ anchorRef, onClose, children }: {
+  anchorRef: React.RefObject<HTMLButtonElement | null>
+  onClose: () => void
+  children: React.ReactNode
+}) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+
+  useEffect(() => {
+    if (!anchorRef.current) return
+    const rect = anchorRef.current.getBoundingClientRect()
+    setPos({ top: rect.bottom + 4, left: rect.left })
+  }, [anchorRef])
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (anchorRef.current && anchorRef.current.contains(e.target as Node)) return
+      onClose()
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [onClose, anchorRef])
+
+  if (!pos) return null
+
+  return createPortal(
+    <div
+      className="fixed z-50 bg-surface-alt border border-border rounded shadow-lg min-w-[140px]"
+      style={{ top: pos.top, left: pos.left }}
+    >
+      {children}
+    </div>,
+    document.body
+  )
+}
 
 function ThreadMenu({ thread, onUpdate, onDelete }: {
   thread: Thread
@@ -14,6 +51,7 @@ function ThreadMenu({ thread, onUpdate, onDelete }: {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(thread.name)
   const [showColors, setShowColors] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
 
   if (editing) {
     return (
@@ -41,7 +79,7 @@ function ThreadMenu({ thread, onUpdate, onDelete }: {
   }
 
   return (
-    <div className="relative">
+    <div>
       <div className="flex items-center gap-2">
         <span
           className="w-2.5 h-2.5 rounded-full shrink-0 cursor-pointer"
@@ -52,6 +90,7 @@ function ThreadMenu({ thread, onUpdate, onDelete }: {
           {thread.name}
         </span>
         <button
+          ref={btnRef}
           onClick={() => setOpen(!open)}
           className="text-text-muted hover:text-text-secondary text-xs px-1"
         >
@@ -73,7 +112,7 @@ function ThreadMenu({ thread, onUpdate, onDelete }: {
       )}
 
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-20 bg-surface-alt border border-border rounded shadow-lg min-w-[120px]">
+        <DropdownPortal anchorRef={btnRef} onClose={() => setOpen(false)}>
           <button
             onClick={() => { setEditing(true); setOpen(false) }}
             className="w-full text-left px-3 py-2.5 text-sm text-text-primary hover:bg-border transition-colors"
@@ -97,7 +136,7 @@ function ThreadMenu({ thread, onUpdate, onDelete }: {
           >
             Delete
           </button>
-        </div>
+        </DropdownPortal>
       )}
     </div>
   )
@@ -112,6 +151,7 @@ function EpisodeMenu({ episode, onUpdate, onDelete, onOpen }: {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(episode.title)
+  const btnRef = useRef<HTMLButtonElement>(null)
 
   if (editing) {
     return (
@@ -141,7 +181,7 @@ function EpisodeMenu({ episode, onUpdate, onDelete, onOpen }: {
   }
 
   return (
-    <div className="relative text-center">
+    <div className="text-center">
       <div className="flex items-center justify-center gap-1">
         <button
           onClick={onOpen}
@@ -150,6 +190,7 @@ function EpisodeMenu({ episode, onUpdate, onDelete, onOpen }: {
           EP {episode.number}
         </button>
         <button
+          ref={btnRef}
           onClick={() => setOpen(!open)}
           className="text-text-muted hover:text-text-secondary text-xs px-1"
         >
@@ -163,9 +204,9 @@ function EpisodeMenu({ episode, onUpdate, onDelete, onOpen }: {
       )}
 
       {open && (
-        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-20 bg-surface-alt border border-border rounded shadow-lg min-w-[120px]">
+        <DropdownPortal anchorRef={btnRef} onClose={() => setOpen(false)}>
           <button
-            onClick={onOpen}
+            onClick={() => { onOpen(); setOpen(false) }}
             className="w-full text-left px-3 py-2.5 text-sm text-text-primary hover:bg-border transition-colors"
           >
             Open
@@ -187,7 +228,7 @@ function EpisodeMenu({ episode, onUpdate, onDelete, onOpen }: {
           >
             Delete
           </button>
-        </div>
+        </DropdownPortal>
       )}
     </div>
   )

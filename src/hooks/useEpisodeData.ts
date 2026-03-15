@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchEpisodeData } from '../lib/queries'
+import { offlineMutation } from '../lib/offlineQueue'
 import { useRealtimeSubscription } from './useRealtimeSubscription'
 import type { Beat, ArcCell, BeatCharacter, CharacterNote } from '../lib/types'
 
@@ -71,46 +72,66 @@ export function useEpisodeData(episodeId: string | undefined) {
 
   const addBeat = async (threadId: string, sortOrder: number) => {
     if (!episodeId) return
-    const { data } = await supabase
-      .from('beat')
-      .insert({ episode_id: episodeId, thread_id: threadId, sort_order: sortOrder } as any)
-      .select()
-      .single<Beat>()
-    if (data) {
-      setBeats((prev) => [...prev, data].sort((a, b) => a.sort_order - b.sort_order))
-    }
+    const insertData = { episode_id: episodeId, thread_id: threadId, sort_order: sortOrder }
+    const tempId = crypto.randomUUID()
+    const result = await offlineMutation(
+      async () => {
+        const { data } = await supabase
+          .from('beat')
+          .insert(insertData as any)
+          .select()
+          .single<Beat>()
+        return data
+      },
+      { table: 'beat', operation: 'insert', data: { ...insertData, id: tempId } }
+    )
+    const data = result ?? { id: tempId, ...insertData, label: 'Beat' as const, text: '', created_at: new Date().toISOString() } as Beat
+    setBeats((prev) => [...prev, data].sort((a, b) => a.sort_order - b.sort_order))
     return data
   }
 
   const updateBeat = async (id: string, updates: Partial<Beat>) => {
-    await supabase.from('beat').update(updates as any).eq('id', id)
     setBeats((prev) => prev.map((b) => (b.id === id ? { ...b, ...updates } : b)))
+    await offlineMutation(
+      () => supabase.from('beat').update(updates as any).eq('id', id) as any,
+      { table: 'beat', operation: 'update', data: updates, match: { id } }
+    )
   }
 
   const deleteBeat = async (id: string) => {
-    await supabase.from('beat').delete().eq('id', id)
     setBeats((prev) => prev.filter((b) => b.id !== id))
     setBeatCharacters((prev) => prev.filter((bc) => bc.beat_id !== id))
     setCharacterNotes((prev) => prev.filter((cn) => cn.beat_id !== id))
+    await offlineMutation(
+      () => supabase.from('beat').delete().eq('id', id) as any,
+      { table: 'beat', operation: 'delete', match: { id } }
+    )
   }
 
   const tagCharacter = async (beatId: string, characterId: string) => {
-    const { data } = await supabase
-      .from('beat_character')
-      .insert({ beat_id: beatId, character_id: characterId } as any)
-      .select()
-      .single<BeatCharacter>()
-    if (data) setBeatCharacters((prev) => [...prev, data])
+    const insertData = { beat_id: beatId, character_id: characterId }
+    const result = await offlineMutation(
+      async () => {
+        const { data } = await supabase
+          .from('beat_character')
+          .insert(insertData as any)
+          .select()
+          .single<BeatCharacter>()
+        return data
+      },
+      { table: 'beat_character', operation: 'insert', data: insertData }
+    )
+    const data = result ?? { ...insertData, created_at: new Date().toISOString() } as BeatCharacter
+    setBeatCharacters((prev) => [...prev, data])
   }
 
   const untagCharacter = async (beatId: string, characterId: string) => {
-    await supabase
-      .from('beat_character')
-      .delete()
-      .eq('beat_id', beatId)
-      .eq('character_id', characterId)
     setBeatCharacters((prev) =>
       prev.filter((bc) => !(bc.beat_id === beatId && bc.character_id === characterId))
+    )
+    await offlineMutation(
+      () => supabase.from('beat_character').delete().eq('beat_id', beatId).eq('character_id', characterId) as any,
+      { table: 'beat_character', operation: 'delete', match: { beat_id: beatId, character_id: characterId } }
     )
   }
 

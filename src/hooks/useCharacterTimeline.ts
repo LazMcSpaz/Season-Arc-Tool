@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchCharacterTimeline } from '../lib/queries'
+import { offlineMutation } from '../lib/offlineQueue'
 import { useRealtimeSubscription } from './useRealtimeSubscription'
 import type { Character, Beat, BeatCharacter, CharacterNote } from '../lib/types'
 
@@ -61,33 +62,55 @@ export function useCharacterTimeline(characterId: string | undefined) {
 
   const upsertNote = async (beatId: string, content: string) => {
     if (!characterId) return
-    const { data } = await supabase
-      .from('character_note')
-      .upsert(
-        { character_id: characterId, beat_id: beatId, content } as any,
-        { onConflict: 'character_id,beat_id' }
+    const upsertData = { character_id: characterId, beat_id: beatId, content }
+    const existingNote = characterNotes.find(
+      (n) => n.character_id === characterId && n.beat_id === beatId
+    )
+    // Optimistic update
+    setCharacterNotes((prev) => {
+      const idx = prev.findIndex(
+        (n) => n.character_id === characterId && n.beat_id === beatId
       )
-      .select()
-      .single<CharacterNote>()
-    if (data) {
-      setCharacterNotes((prev) => {
-        const idx = prev.findIndex(
-          (n) => n.character_id === characterId && n.beat_id === beatId
-        )
-        if (idx >= 0) {
-          const next = [...prev]
-          next[idx] = data
-          return next
+      if (idx >= 0) {
+        const next = [...prev]
+        next[idx] = { ...next[idx], content }
+        return next
+      }
+      return [...prev, { id: crypto.randomUUID(), ...upsertData, updated_at: new Date().toISOString() } as CharacterNote]
+    })
+    await offlineMutation(
+      async () => {
+        const { data } = await supabase
+          .from('character_note')
+          .upsert(upsertData as any, { onConflict: 'character_id,beat_id' })
+          .select()
+          .single<CharacterNote>()
+        if (data) {
+          setCharacterNotes((prev) => {
+            const idx = prev.findIndex(
+              (n) => n.character_id === characterId && n.beat_id === beatId
+            )
+            if (idx >= 0) {
+              const next = [...prev]
+              next[idx] = data
+              return next
+            }
+            return prev
+          })
         }
-        return [...prev, data]
-      })
-    }
+        return data
+      },
+      { table: 'character_note', operation: 'upsert', data: upsertData, onConflict: 'character_id,beat_id', editedAt: existingNote?.updated_at }
+    )
   }
 
   const updateCharacter = async (updates: Partial<Character>) => {
     if (!characterId) return
-    await supabase.from('character').update(updates as any).eq('id', characterId)
     setCharacter((prev) => (prev ? { ...prev, ...updates } : prev))
+    await offlineMutation(
+      () => supabase.from('character').update(updates as any).eq('id', characterId) as any,
+      { table: 'character', operation: 'update', data: updates, match: { id: characterId } }
+    )
   }
 
   return {

@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import ProjectLayout from './components/ProjectLayout'
+import OfflineIndicator from './components/OfflineIndicator'
+import ConflictResolver from './components/ConflictResolver'
 import LoginPage from './pages/LoginPage'
 import ProjectListPage from './pages/ProjectListPage'
 import ArcGridPage from './pages/ArcGridPage'
@@ -23,6 +25,8 @@ export default function App() {
             </Route>
           </Route>
         </Routes>
+        <OfflineIndicator />
+        <ConflictResolver />
       </BrowserRouter>
     </AuthProvider>
   )

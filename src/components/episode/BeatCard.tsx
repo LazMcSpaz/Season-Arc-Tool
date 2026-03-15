@@ -42,7 +42,7 @@ export default function BeatCard({
         <select
           value={beat.label}
           onChange={(e) => onUpdate({ label: e.target.value as BeatLabel })}
-          className="bg-surface-alt border border-border rounded px-2 py-0.5 font-mono text-xs text-text-secondary focus:outline-none focus:border-border-active"
+          className="bg-surface-alt border border-border rounded px-3 py-2 font-mono text-xs text-text-secondary focus:outline-none focus:border-border-active"
         >
           {LABELS.map((l) => (
             <option key={l} value={l}>{l.toUpperCase()}</option>
@@ -55,7 +55,7 @@ export default function BeatCard({
           onClick={() => {
             if (confirm('Delete this beat?')) onDelete()
           }}
-          className="text-text-muted font-mono text-xs hover:text-red-400 transition-colors"
+          className="text-text-muted font-mono text-sm px-2 py-1 hover:text-red-400 transition-colors"
         >
           x
         </button>
@@ -75,7 +75,7 @@ export default function BeatCard({
         {taggedCharacters.map((char) => (
           <span
             key={char.id}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-mono"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono"
             style={{
               backgroundColor: char.color + '33',
               color: '#C8BFA8',
@@ -95,7 +95,7 @@ export default function BeatCard({
           <div className="relative">
             <button
               onClick={() => setShowPicker(!showPicker)}
-              className="px-1.5 py-0.5 border border-dashed border-border rounded text-text-muted text-xs hover:border-border-active hover:text-text-secondary transition-colors"
+              className="px-3 py-1.5 border border-dashed border-border rounded text-text-muted text-xs hover:border-border-active hover:text-text-secondary transition-colors"
             >
               +
             </button>

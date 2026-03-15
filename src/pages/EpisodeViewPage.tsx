@@ -28,7 +28,7 @@ export default function EpisodeViewPage() {
   }
 
   return (
-    <div className="max-w-[860px] mx-auto p-6">
+    <div className="max-w-[860px] mx-auto p-4 sm:p-6">
       <EpisodeHeader episode={episode} onUpdate={handleUpdateEpisode} />
 
       {threads.map((thread) => (

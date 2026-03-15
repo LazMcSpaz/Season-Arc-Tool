@@ -3,57 +3,30 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
-  const { signIn, signUp, signInWithOtp } = useAuth()
+  const { signInWithPasscode } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    setMessage(null)
+    if (!code.trim()) return
     setSubmitting(true)
-
-    const result = mode === 'signin'
-      ? await signIn(email, password)
-      : await signUp(email, password)
-
+    const result = await signInWithPasscode(code.trim())
     setSubmitting(false)
-
     if (result.error) {
-      setError(result.error.message)
-    } else if (mode === 'signup') {
-      setMessage('Check your email for a confirmation link.')
+      setError(result.error)
     } else {
       navigate('/')
     }
   }
 
-  const handleMagicLink = async () => {
-    setError(null)
-    setMessage(null)
-    if (!email) {
-      setError('Enter your email first.')
-      return
-    }
-    setSubmitting(true)
-    const { error } = await signInWithOtp(email)
-    setSubmitting(false)
-    if (error) {
-      setError(error.message)
-    } else {
-      setMessage('Check your email for a magic link.')
-    }
-  }
-
   return (
-    <div className="flex items-center justify-center min-h-svh">
+    <div className="flex items-center justify-center min-h-svh px-4">
       <div className="w-full max-w-sm p-8 bg-surface rounded-lg border border-border">
-        <h1 className="font-heading text-2xl text-text-primary text-center mb-6">
+        <h1 className="font-heading text-2xl text-text-primary text-center mb-2">
           The Remnant Continent
         </h1>
         <p className="text-text-secondary text-center text-sm mb-8">
@@ -63,82 +36,32 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-text-secondary text-sm font-mono mb-1">
-              EMAIL
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-3 py-2 bg-surface-alt border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-active"
-              placeholder="writer@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-text-secondary text-sm font-mono mb-1">
-              PASSWORD
+              PASSCODE
             </label>
             <input
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
               required
-              minLength={6}
-              className="w-full px-3 py-2 bg-surface-alt border border-border rounded text-text-primary placeholder-text-muted focus:outline-none focus:border-border-active"
-              placeholder="Min 6 characters"
+              autoFocus
+              autoComplete="off"
+              className="w-full px-4 py-3 bg-surface-alt border border-border rounded text-text-primary text-lg text-center tracking-widest placeholder-text-muted focus:outline-none focus:border-border-active"
+              placeholder="Enter passcode"
             />
           </div>
 
           {error && (
-            <p className="text-red-400 text-sm">{error}</p>
-          )}
-          {message && (
-            <p className="text-text-arc text-sm">{message}</p>
+            <p className="text-red-400 text-sm text-center">{error}</p>
           )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-2 bg-surface-alt border border-border-active rounded text-text-primary font-mono text-sm hover:bg-border transition-colors disabled:opacity-50"
+            className="w-full py-3 bg-surface-alt border border-border-active rounded text-text-primary font-mono text-sm hover:bg-border transition-colors disabled:opacity-50"
           >
-            {submitting ? '...' : mode === 'signin' ? 'SIGN IN' : 'SIGN UP'}
+            {submitting ? '...' : 'ENTER'}
           </button>
         </form>
-
-        <div className="mt-4 space-y-3">
-          <button
-            onClick={handleMagicLink}
-            disabled={submitting}
-            className="w-full py-2 border border-border rounded text-text-muted font-mono text-sm hover:text-text-secondary hover:border-border-active transition-colors disabled:opacity-50"
-          >
-            MAGIC LINK
-          </button>
-
-          <p className="text-center text-text-muted text-sm">
-            {mode === 'signin' ? (
-              <>
-                No account?{' '}
-                <button
-                  onClick={() => { setMode('signup'); setError(null); setMessage(null) }}
-                  className="text-text-secondary underline"
-                >
-                  Sign up
-                </button>
-              </>
-            ) : (
-              <>
-                Have an account?{' '}
-                <button
-                  onClick={() => { setMode('signin'); setError(null); setMessage(null) }}
-                  className="text-text-secondary underline"
-                >
-                  Sign in
-                </button>
-              </>
-            )}
-          </p>
-        </div>
       </div>
     </div>
   )

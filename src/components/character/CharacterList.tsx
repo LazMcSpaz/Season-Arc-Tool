@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useProject } from '../../contexts/ProjectContext'
 import { COLOR_PALETTE } from '../../lib/colors'
 
-export default function CharacterList() {
+export default function CharacterList({ onSelect }: { onSelect?: () => void }) {
   const { projectId, characterId } = useParams<{ projectId: string; characterId: string }>()
   const { characters, addCharacter } = useProject()
   const [showForm, setShowForm] = useState(false)
@@ -32,7 +32,8 @@ export default function CharacterList() {
         <Link
           key={c.id}
           to={`/project/${projectId}/character/${c.id}`}
-          className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm transition-colors ${
+          onClick={onSelect}
+          className={`flex items-center gap-2 px-3 py-2.5 rounded text-sm transition-colors ${
             c.id === characterId
               ? 'bg-surface-alt text-text-primary'
               : 'text-text-secondary hover:bg-surface hover:text-text-primary'

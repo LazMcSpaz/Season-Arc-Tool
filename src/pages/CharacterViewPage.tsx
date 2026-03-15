@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useProject } from '../contexts/ProjectContext'
 import { useCharacterTimeline } from '../hooks/useCharacterTimeline'
@@ -12,6 +13,7 @@ export default function CharacterViewPage() {
     character, beats, characterNotes, loading,
     upsertNote, updateCharacter,
   } = useCharacterTimeline(characterId)
+  const [showSidebar, setShowSidebar] = useState(false)
 
   // Sort beats by episode number then sort_order
   const sortedBeats = [...beats].sort((a, b) => {
@@ -24,15 +26,40 @@ export default function CharacterViewPage() {
 
   return (
     <div className="flex min-h-0 flex-1">
-      <CharacterList />
+      {/* Sidebar: always visible on desktop, toggleable on mobile */}
+      <div className={`
+        ${showSidebar ? 'block' : 'hidden'} md:block
+        fixed md:relative z-30 inset-y-0 left-0 md:inset-auto
+        bg-bg md:bg-transparent
+      `}>
+        <CharacterList onSelect={() => setShowSidebar(false)} />
+      </div>
+
+      {/* Backdrop for mobile sidebar */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 z-20 bg-black/50 md:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
 
       <div className="flex-1 overflow-y-auto">
+        {/* Mobile character toggle */}
+        <div className="md:hidden px-4 pt-3">
+          <button
+            onClick={() => setShowSidebar(true)}
+            className="px-3 py-2 border border-border rounded text-text-muted font-mono text-xs hover:text-text-secondary"
+          >
+            CHARACTERS {character ? `/ ${character.name}` : ''}
+          </button>
+        </div>
+
         {loading || !character ? (
           <div className="flex items-center justify-center p-12">
             <p className="text-text-muted font-mono text-sm">Loading...</p>
           </div>
         ) : (
-          <div className="max-w-[860px] mx-auto p-6">
+          <div className="max-w-[860px] mx-auto p-4 sm:p-6">
             <CharacterHeader character={character} onUpdate={updateCharacter} />
 
             <div className="space-y-3">

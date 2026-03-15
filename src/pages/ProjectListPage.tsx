@@ -39,7 +39,7 @@ export default function ProjectListPage() {
   }
 
   return (
-    <div className="max-w-[860px] mx-auto p-8">
+    <div className="max-w-[860px] mx-auto p-4 sm:p-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-heading text-2xl text-text-primary">Projects</h1>
         <button

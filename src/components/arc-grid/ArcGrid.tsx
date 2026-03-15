@@ -21,7 +21,7 @@ export default function ArcGrid() {
             {episodes.map((ep) => (
               <th
                 key={ep.id}
-                className="p-3 text-center font-mono text-xs text-text-secondary border-b border-border min-w-[180px] cursor-pointer hover:text-text-primary transition-colors"
+                className="p-3 text-center font-mono text-xs text-text-secondary border-b border-border min-w-[200px] cursor-pointer hover:text-text-primary transition-colors"
                 onClick={() => navigate(`/project/${projectId}/episode/${ep.id}`)}
               >
                 EP {ep.number}

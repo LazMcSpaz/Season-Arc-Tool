@@ -1,14 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
+import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 
 interface AuthContextValue {
   session: Session | null
-  user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signUp: (email: string, password: string) => Promise<{ error: Error | null }>
-  signInWithOtp: (email: string) => Promise<{ error: Error | null }>
+  signInWithPasscode: (code: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -33,19 +30,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    return { error }
-  }
+  const signInWithPasscode = async (code: string) => {
+    const accessCode = import.meta.env.VITE_ACCESS_CODE
+    if (code !== accessCode) {
+      return { error: 'Incorrect passcode.' }
+    }
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password })
-    return { error }
-  }
-
-  const signInWithOtp = async (email: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ email })
-    return { error }
+    // Passcode correct — sign in anonymously to get a Supabase session for RLS
+    const { error } = await supabase.auth.signInAnonymously()
+    if (error) {
+      return { error: error.message }
+    }
+    return { error: null }
   }
 
   const signOut = async () => {
@@ -53,15 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{
-      session,
-      user: session?.user ?? null,
-      loading,
-      signIn,
-      signUp,
-      signInWithOtp,
-      signOut,
-    }}>
+    <AuthContext.Provider value={{ session, loading, signInWithPasscode, signOut }}>
       {children}
     </AuthContext.Provider>
   )

@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session)
+        setLoading(false)
       }
     )
 
@@ -37,15 +38,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Passcode correct — sign in anonymously to get a Supabase session for RLS
-    const { error } = await supabase.auth.signInAnonymously()
+    const { data, error } = await supabase.auth.signInAnonymously()
     if (error) {
       return { error: error.message }
     }
+
+    // Set session immediately so ProtectedRoute doesn't redirect
+    if (data.session) {
+      setSession(data.session)
+    }
+
     return { error: null }
   }
 
   const signOut = async () => {
     await supabase.auth.signOut()
+    setSession(null)
   }
 
   return (

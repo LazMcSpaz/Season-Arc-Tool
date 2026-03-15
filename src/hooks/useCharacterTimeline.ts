@@ -63,6 +63,9 @@ export function useCharacterTimeline(characterId: string | undefined) {
   const upsertNote = async (beatId: string, content: string) => {
     if (!characterId) return
     const upsertData = { character_id: characterId, beat_id: beatId, content }
+    const existingNote = characterNotes.find(
+      (n) => n.character_id === characterId && n.beat_id === beatId
+    )
     // Optimistic update
     setCharacterNotes((prev) => {
       const idx = prev.findIndex(
@@ -97,7 +100,7 @@ export function useCharacterTimeline(characterId: string | undefined) {
         }
         return data
       },
-      { table: 'character_note', operation: 'upsert', data: upsertData, onConflict: 'character_id,beat_id' }
+      { table: 'character_note', operation: 'upsert', data: upsertData, onConflict: 'character_id,beat_id', editedAt: existingNote?.updated_at }
     )
   }
 

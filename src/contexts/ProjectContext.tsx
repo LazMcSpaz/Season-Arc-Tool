@@ -209,6 +209,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const updateArcCell = async (episodeId: string, threadId: string, content: string) => {
     const upsertData = { episode_id: episodeId, thread_id: threadId, content }
+    const existing = arcCells.find((c) => c.episode_id === episodeId && c.thread_id === threadId)
     await offlineMutation(
       async () => {
         const { data } = await supabase
@@ -229,7 +230,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
         return data
       },
-      { table: 'arc_cell', operation: 'upsert', data: upsertData, onConflict: 'episode_id,thread_id' }
+      { table: 'arc_cell', operation: 'upsert', data: upsertData, onConflict: 'episode_id,thread_id', editedAt: existing?.updated_at }
     )
     // Optimistic update for offline case
     setArcCells((prev) => {

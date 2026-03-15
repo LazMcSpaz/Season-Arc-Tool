@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #080806;
+  --color-surface: #0F0F0C;
+  --color-surface-alt: #141410;
+  --color-border: #1E1E18;
+  --color-border-active: #2A2A22;
+  --color-text-primary: #C8BFA8;
+  --color-text-secondary: #B0A090;
+  --color-text-muted: #706860;
+  --color-text-arc: #9AAABB;
+
+  --color-versari: #8B4513;
+  --color-flatwind: #1A3A5C;
+
+  --font-heading: 'Cinzel', serif;
+  --font-body: 'EB Garamond', serif;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+/* Prevent iOS zoom on input focus (requires 16px+ font) */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* Larger touch targets for interactive elements */
+button, a, select {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Smooth scrolling on iOS */
+.overflow-x-auto, .overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area insets for notched devices */
+@supports (padding: env(safe-area-inset-bottom)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
